@@ -2,7 +2,7 @@
 A custom omnigraph node to bridge px4_sitl and NVIDIA-isaacsim
 
 
-<img width="800" height="800" alt="beluga" src="https://github.com/user-attachments/assets/bcfe4290-bf33-430e-bc53-ee367f020652" />
+<img width="640" height="640" alt="beluga" src="https://github.com/user-attachments/assets/bcfe4290-bf33-430e-bc53-ee367f020652" />
 
 
 
