@@ -136,7 +136,7 @@ public:
 	MagnetoSensor(){}
 
 	MagParameters& getParameters(){ return parameters_; }
-	const MagReadings& getReadings(){ return readings_; }
+	const MagReadings& getMagReadings(){ return readings_; }
 
 	// Mag sensor readings/data sampling/data extraction logic here sampled @100Hz
 	const void sample(
@@ -302,6 +302,7 @@ private:
  */
 class BaroSensor{
 public:
+	static constexpr uint32_t MAVLINK_FIELD_ID_BARO = 6656U;
 	struct BaroParameters{
         // intrinsics
         bool first_read;
@@ -315,7 +316,7 @@ public:
         float temperature_noisy = 0.0f;
 	};
 	BaroParameters& getParameters(){return parameters_;}
-	BaroReadings& getReadings(){return readings_;}
+	BaroReadings& getBaroReadings(){return readings_;}
 
 	// barometer readings/data extraction/sampling logic; sampling @50Hz
 	const void sample(
@@ -394,7 +395,7 @@ public:
         usdrt::GfVec3f gps_vel_enu = usdrt::GfVec3f(0, 0, 0);
 	};
 	GPSParameters& getParameters(){return parameters_;}
-	GPSReadings& getReadings(){return readings_;}
+	GPSReadings& getGPSReadings(){return readings_;}
 
 	// GPS sensor data sampled @10Hz
 	const void sample(

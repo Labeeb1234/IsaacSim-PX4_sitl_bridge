@@ -24,14 +24,20 @@ public:
         state.m_vehicle_->reset();
         state.m_imu_ = std::make_unique<ImuSensor>();
         ImuSensor::ImuParameters &imu_params = state.m_imu_->getParameters();
-        
+        state.m_mag_ = std::make_unique<MagnetoSensor>();
+        MagnetoSensor::MagParameters &mag_params = state.m_mag_->getParameters();
+        state.m_baro_ = std::make_unique<BaroSensor>();
+        BaroSensor::BaroParameters &baro_params = state.m_baro_->getParameters();
+
         // onValueChanged callback
         auto cb = [](const omni::graph::core::AttributeObj &attr, const void *value){
             const NodeObj nodeObj = attr.iAttribute->getNode(attr);
             const auto graphInstanceIndex = nodeObj.iNode->getGraphInstanceID(nodeObj.nodeHandle, InstanceIndex{0});
             auto &state = StreamHILSensorNodeDatabase::sPerInstanceState<StreamHILSensorNode>(nodeObj, graphInstanceIndex);
-            
             ImuSensor::ImuParameters &imu_params = state.m_imu_->getParameters();
+            MagnetoSensor::MagParameters &mag_params = state.m_mag_->getParameters();
+            BaroSensor::BaroParameters &baro_params = state.m_baro_->getParameters();
+            
             // accelerometer arttributes extraction
             if(attr.iAttribute->getNameToken(attr) == state::offsetTranslationIMU.token()){
                 imu_params.offset_translate_xyz = *static_cast<const usdrt::GfVec3d *>(value);
@@ -66,6 +72,20 @@ public:
                 imu_params.gyroscope_turn_on_bias_sigma = *static_cast<const float *>(value);
                 state.m_imu_->updateBias();
             }
+            // magnetometer attributes extraction
+            if(attr.iAttribute->getNameToken(attr) == state::magnetometerNoiseDensity.token()){
+                mag_params.magnetometer_noise_density = *static_cast<const float *>(value);
+            }
+            if(attr.iAttribute->getNameToken(attr) == state::magnetometerRandomWalk.token()){
+                mag_params.magnetometer_random_walk = *static_cast<const float *>(value);
+            }
+            if(attr.iAttribute->getNameToken(attr) == state::magnetometerBiasCorrelationTime.token()){
+                mag_params.magnetometer_bias_correlation_time = *static_cast<const float *>(value);
+            }
+            // Barometer attributes extraction
+            if(attr.iAttribute->getNameToken(attr) == state::barometerDriftPaPerSecond.token()){
+                baro_params.drift_pa_per_second = *static_cast<const float *>(value);
+            }
         };
 
         AttributeObj attr = nodeObj.iNode->getAttributeByToken(nodeObj, state::systemId.token());
@@ -87,6 +107,11 @@ public:
         initializeAttribute(state::gyroscopeRandomWalk.token(), omni::fabric::BaseDataType::eFloat, &imu_params.gyroscope_random_walk);
         initializeAttribute(state::gyroscopeBiasCorrelationTime.token(), omni::fabric::BaseDataType::eFloat, &imu_params.gyroscope_bias_correlation_time);
         initializeAttribute(state::gyroscopeTurnOnBiasSigma.token(), omni::fabric::BaseDataType::eFloat, &imu_params.gyroscope_turn_on_bias_sigma);
+        initializeAttribute(state::magnetometerNoiseDensity.token(), omni::fabric::BaseDataType::eFloat, &mag_params.magnetometer_noise_density);
+        initializeAttribute(state::magnetometerRandomWalk.token(), omni::fabric::BaseDataType::eFloat, &mag_params.magnetometer_random_walk);
+        initializeAttribute(state::magnetometerBiasCorrelationTime.token(), omni::fabric::BaseDataType::eFloat, &mag_params.magnetometer_bias_correlation_time);
+        initializeAttribute(state::barometerDriftPaPerSecond.token(), omni::fabric::BaseDataType::eFloat, &baro_params.drift_pa_per_second);
+
         if(auto timeline = omni::timeline::getTimeline()){
             state.m_timelineEventsSubscription = carb::events::createSubscriptionToPop(
                 timeline->getTimelineEventStream(),
@@ -97,8 +122,8 @@ public:
                         state.mag_last_sampled_us_ = 0U;
                         state.baro_last_sampled_us_ = 0U;
                         state.m_imu_->reset();
-                        // state.m_mag_->reset();
-                        // state.m_baro_->reset();
+                        state.m_mag_->reset();
+                        state.m_baro_->reset();
                         state.m_vehicle_->reset();
                         CARB_LOG_INFO("Reset sensor's accumulated bias and readings");
                     }
@@ -149,30 +174,30 @@ public:
                 state.imu_last_sampled_us_ = current_time_us;
             } 
         }
-        // if(rate_mag > 0){
-        //     uint64_t mag_period_us = static_cast<uint64_t>(1e6 / rate_mag);
-        //     uint64_t mag_elapsed = current_time_us - state.mag_last_sampled_us_;
-        //     if(mag_elapsed >= mag_period_us){
-        //         double dt = mag_elapsed * 1e-6;
-        //         state.m_mag_->sample(motion, home[0], home[1], dt);
-        //         updated_fields |= MagnetoSensor::MAVLINK_FIELD_ID_MAG;
-        //         state.mag_last_sampled_us_ = current_time_us;
-        //     }
-        // }
-        // if(rate_baro > 0){
-        //     uint64_t baro_period_us = static_cast<uint64_t>(1e6 / rate_baro);
-        //     uint64_t baro_elapsed = current_time_us - state.baro_last_sampled_us_;
-        //     if(baro_elapsed >= baro_period_us){
-        //         double dt = baro_elapsed * 1e-6;
-        //         state.m_baro_->sample(motion, home[2], dt);
-        //         updated_fields |= BaroSensor::MAVLINK_FIELD_ID_BARO;
-        //         state.baro_last_sampled_us_ = current_time_us;
-        //     }
-        // }
+        if(rate_mag > 0){
+            uint64_t mag_period_us = static_cast<uint64_t>(1e6 / rate_mag);
+            uint64_t mag_elapsed = current_time_us - state.mag_last_sampled_us_;
+            if(mag_elapsed >= mag_period_us){
+                double dt = mag_elapsed * 1e-6;
+                state.m_mag_->sample(motion, home[0], home[1], dt);
+                updated_fields |= MagnetoSensor::MAVLINK_FIELD_ID_MAG;
+                state.mag_last_sampled_us_ = current_time_us;
+            }
+        }
+        if(rate_baro > 0){
+            uint64_t baro_period_us = static_cast<uint64_t>(1e6 / rate_baro);
+            uint64_t baro_elapsed = current_time_us - state.baro_last_sampled_us_;
+            if(baro_elapsed >= baro_period_us){
+                double dt = baro_elapsed * 1e-6;
+                state.m_baro_->sample(motion, home[2], dt);
+                updated_fields |= BaroSensor::MAVLINK_FIELD_ID_BARO;
+                state.baro_last_sampled_us_ = current_time_us;
+            }
+        }
     
         auto imu_data = state.m_imu_->getImuReadings();
-        // auto mag_data = state.m_mag_->getMagReadings();
-        // auto baro_data = state.m_baro_->getBaroReadings();
+        auto mag_data = state.m_mag_->getMagReadings();
+        auto baro_data = state.m_baro_->getBaroReadings();
 
         // sending mavlink sensor msgs to FCU
         mavlink_message_t msg;
@@ -187,16 +212,13 @@ public:
             imu_data.angular_velocity_noisy[0],           // xgyro
             -1.0 * imu_data.angular_velocity_noisy[1],    // ygyro
             -1.0 * imu_data.angular_velocity_noisy[2],    // zgyro
-                                    
-            0.0f,                  // xmag
-            0.0f,           // ymag
-            0.0f,                  // zmag
-                                    
-            0.0f,            // abs_pressure (sea level standard)
+            mag_data.mag_field_noisy[1],                  // xmag
+            -1.0 * mag_data.mag_field_noisy[0],           // ymag
+            mag_data.mag_field_noisy[2],                  // zmag
+            baro_data.absolute_pressure_noisy,            // abs_pressure (sea level standard)
             0.0f,                                         // diff_pressure (multirotor unused)
-            0.0f,            // pressure_alt
-            0.0f,                  // temperature
-                                    
+            baro_data.pressure_altitude_noisy,            // pressure_alt
+            baro_data.temperature_noisy,                  // temperature
             updated_fields,                               // fields_updated (all fields)
             0                                             // id
         );
@@ -211,8 +233,8 @@ private:
     uint64_t mag_last_sampled_us_ = 0U;
     uint64_t baro_last_sampled_us_ = 0U;
     std::unique_ptr<ImuSensor> m_imu_;
-    // std::unique_ptr<MagnetoSensor> m_mag_;
-    // std::unique_ptr<BaroSensor> m_baro_;
+    std::unique_ptr<MagnetoSensor> m_mag_;
+    std::unique_ptr<BaroSensor> m_baro_;
 };
 
 REGISTER_OGN_NODE()
