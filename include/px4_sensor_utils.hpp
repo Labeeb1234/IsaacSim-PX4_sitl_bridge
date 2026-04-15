@@ -314,16 +314,44 @@ public:
         float pressure_altitude_noisy = 0.0f;
         float temperature_noisy = 0.0f;
 	};
+	BaroParameters& getParameters(){return parameters_;}
+	BaroReadings& getReadings(){return readings_;}
 
+	// barometer readings/data extraction/sampling logic; sampling @50Hz
+	const void sample(
+		const Px4Multirotor::VehicleMotion& motion,
+		const float home_altitude = 24.0f, // m
+		const double delta_time = 0.02f   // 50Hz
+	){
+        std::random_device rd;
+        xoshiro256ss rng(rd());
+        std::normal_distribution<float> normal_dist(0.0f, 1.0f);
+        const float dt = static_cast<float>(delta_time);
+        auto pos = motion.translate;
+        if(!parameters_.first_read){
+            parameters_.starting_altitude = pos[2];
+            parameters_.first_read = true;
+        }
 
-
-	const void sample(const Px4Multirotor::VehicleMotion& motions, ){
-
+		// using the princle of hydrostatic pressure we calculate the atitude of the system on which the sensor is mounted (just read it online mate its easy fluids concept)
+        const auto alt_amsl = home_altitude + static_cast<float>(pos[2]) - parameters_.starting_altitude; // Z-axis altitude ENU
+        const auto temperature_local = TEMPERATURE_MSL - L * alt_amsl;
+        const auto absolute_pressure = PRESSURE_MSL / std::pow(TEMPERATURE_MSL / temperature_local, kBaro);
+        const auto air_density = AIR_DENSITY_MSL / std::pow(TEMPERATURE_MSL / temperature_local, kBaro1);
+        const auto baro_drift = parameters_.baro_drift + parameters_.drift_pa_per_second * dt; // update baro_drift
+        parameters_.baro_drift = baro_drift;
+        // add noise and drift
+        readings_.absolute_pressure_noisy = (absolute_pressure + normal_dist(rng) + baro_drift) * 0.01f; // convert to hPa
+        readings_.pressure_altitude_noisy = alt_amsl - ((normal_dist(rng) + baro_drift) / (G * air_density));
+        readings_.temperature_noisy = temperature_local + normal_dist(rng) - ABSOLUTE_ZERO_C; // convert to Celsius
 	}
 
-
-
-
+	const void reset(){
+        parameters_.first_read = false;
+        parameters_.starting_altitude = 0.0f;
+        parameters_.baro_drift = 0.0f;
+        readings_ = BaroReadings();
+	}
 
 private:
     BaroParameters parameters_;
@@ -338,6 +366,84 @@ private:
     static constexpr float L = 0.0065f;                  // Temperature Lapse Rate
     static constexpr float kBaro = G * M / (R * L);      // Barometric constant
     static constexpr float kBaro1 = G * M / (R * L) - 1; // Barometric constant - 1
+};
+
+/**
+ * GpsSensor class
+ *
+ * @see https://github.com/PX4/PX4-SITL_gazebo-classic/blob/main/src/gazebo_gps_plugin.cpp
+ */
+class GPSSensor{
+
+public:
+	struct GPSParameters{
+        // intrinsics
+        // https://docs.holybro.com/gps-and-rtk-system/m8n-m9n-m10-gps/standard-m10-m9n-m8n-gps/overview
+        // https://content.u-blox.com/sites/default/files/NEO-M8-FW3_DataSheet_UBX-15031086.pdf
+        usdrt::GfVec3f gps_bias = usdrt::GfVec3f(0, 0, 0);
+        float gps_xy_noise_density = 0.0002f;
+        float gps_z_noise_density = 0.0004f;
+        float gps_vxy_noise_density = 0.001f;
+        float gps_vz_noise_density = 0.002f;
+        float gps_xy_random_walk = 0.005f;
+        float gps_z_random_walk = 0.005f;
+        float gps_correlation_time = 60.0f;
+	};
+	struct GPSReadings{
+        usdrt::GfVec3f gps_latlonalt = usdrt::GfVec3f(0, 0, 0);
+        usdrt::GfVec3f gps_vel_enu = usdrt::GfVec3f(0, 0, 0);
+	};
+	GPSParameters& getParameters(){return parameters_;}
+	GPSReadings& getReadings(){return readings_;}
+
+	// GPS sensor data sampled @10Hz
+	const void sample(
+		const Px4Multirotor::VehicleMotion& motion,
+		const usdrt::GfVec3f& home,
+		const double delta_time=0.1f
+	){
+        std::random_device rd;
+        xoshiro256ss rng(rd());
+        std::normal_distribution<float> normal_dist(0.0f, 1.0f);
+        const float dt = static_cast<float>(delta_time);
+        const float sqrt_dt_inv = 1.0f / std::sqrt(dt);
+        const auto pos = motion.translate;
+        const auto vel = motion.velocity;
+	
+        const float noise_xy = normal_dist(rng) * parameters_.gps_xy_noise_density * sqrt_dt_inv;
+        const float noise_z = normal_dist(rng) * parameters_.gps_z_noise_density * sqrt_dt_inv;
+        const float noise_vxy = normal_dist(rng) * parameters_.gps_vxy_noise_density * sqrt_dt_inv;
+        const float noise_vz = normal_dist(rng) * parameters_.gps_vz_noise_density * sqrt_dt_inv;
+        const float random_walk_xy = normal_dist(rng) * parameters_.gps_xy_random_walk * sqrt_dt_inv;
+        const float random_walk_z = normal_dist(rng) * parameters_.gps_z_random_walk * sqrt_dt_inv;
+
+        parameters_.gps_bias[0] += random_walk_xy * dt - parameters_.gps_bias[0] / parameters_.gps_correlation_time;
+        parameters_.gps_bias[1] += random_walk_xy * dt - parameters_.gps_bias[1] / parameters_.gps_correlation_time;
+        parameters_.gps_bias[2] += random_walk_z * dt - parameters_.gps_bias[2] / parameters_.gps_correlation_time;
+
+        const float pos_x_noisy = static_cast<float>(pos[0]) + noise_xy + parameters_.gps_bias[0];
+        const float pos_y_noisy = static_cast<float>(pos[1]) + noise_xy + parameters_.gps_bias[1];
+        const float pos_z_noisy = static_cast<float>(pos[2]) + noise_z + parameters_.gps_bias[2];
+        usdrt::GfVec3f pos_noisy(pos_x_noisy, pos_y_noisy, pos_z_noisy);
+        const auto gps_latlon = reprojectEarth(pos_noisy, home[0] * DEG2RAD, home[1] * DEG2RAD);
+
+		// readings updation w/ noise model for the gps
+        readings_.gps_latlonalt[0] = gps_latlon[0] * RAD2DEG;
+        readings_.gps_latlonalt[1] = gps_latlon[1] * RAD2DEG;
+        readings_.gps_latlonalt[2] = home[2] + pos_z_noisy;
+        readings_.gps_vel_enu[0] = vel[0] + noise_vxy;
+        readings_.gps_vel_enu[1] = vel[1] + noise_vxy;
+        readings_.gps_vel_enu[2] = vel[2] + noise_vz;
+	}
+
+	const void reset(){
+		parameters_.gps_bias *= 0;
+		readings_ = GPSReadings();
+	}
+
+private:
+    GPSParameters parameters_;
+    GPSReadings readings_;
 };
 
 
