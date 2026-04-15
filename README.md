@@ -1,4 +1,11 @@
-# IsaacSim-PX4_sitl_bridge
+# IsaacSim-PX4_sitl_bridge (Beluga Bridge)
 A custom omnigraph node to bridge px4_sitl and NVIDIA-isaacsim
+
+
+<img width="800" height="800" alt="beluga" src="https://github.com/user-attachments/assets/bcfe4290-bf33-430e-bc53-ee367f020652" />
+
+
+
+- Instructions, brief walkthroughs and demos coming soon!
 
 ## Kindly Note: [Check this dude's repo](https://github.com/limshoonkit/uosm.isaac.px4_bridge/tree/main) for the main stuff, I simple got sidetracked and made mine to suit IsaacSim 4.5.0 and also later on add custom sensor plugins so I wanted to know how this repo worked. Plus its easily customizable and work with less complex abstractions compared to the Pegasus Simulator which sucks btw (no offence)
