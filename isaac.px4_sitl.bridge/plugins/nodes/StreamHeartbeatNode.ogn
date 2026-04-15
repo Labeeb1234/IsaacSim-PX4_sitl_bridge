@@ -1,0 +1,38 @@
+{
+    "StreamHeartbeatNode": {
+        "version": 1,
+        "icon": "icons/px4_black.svg",
+        "singleton": true,
+        "description": [
+            "This node stream Heartbeat (https://mavlink.io/en/messages/common.html#HEARTBEAT) Mavlink message to PX4 SITL"
+        ],
+        "metadata": {
+            "uiName": "Stream Heartbeat"
+        },
+        "categories": {"PX4": "Nodes used with PX4 Autopilot"},
+        "inputs": {
+            "execIn": {
+                "type": "execution",
+                "description": "The input execution port."
+            },
+
+            "px4Instance": {
+                "type": "int",
+                "description": "The px4 instance.",
+                "default": 0,
+                "minimum": 0,
+                "maximum": 255,
+                "uiName": "PX4 Instance"
+            }
+        },
+        "state": {
+            "systemId": {
+                "type": "uchar",
+                "description": "System ID - unique per vehicle (https://docs.px4.io/main/en/advanced_config/parameter_reference.html#MAV_SYS_ID)",
+                "default": 1,
+                "minimum": 1,
+                "maximum": 250
+            }
+        }
+    }
+}

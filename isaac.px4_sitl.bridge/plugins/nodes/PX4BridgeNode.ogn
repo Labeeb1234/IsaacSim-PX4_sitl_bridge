@@ -1,0 +1,136 @@
+{
+    "PX4BridgeNode": {
+        "version": 1,
+        "icon": "icons/px4_black.svg",
+        "singleton": true,
+        "description": [
+            "This node receives data from PX4 SITL as Mavlink messages"
+        ],
+        "metadata": {
+            "uiName": "PX4 Bridge"
+        },
+        "categories": {"PX4": "Nodes used with PX4 Autopilot"},
+        "inputs": {
+            "execIn": {
+                "type": "execution",
+                "description": "The input execution port."
+            },
+
+            "px4Instance": {
+                "type": "int",
+                "description": "The px4 instance.",
+                "default": 0,
+                "minimum": 0,
+                "maximum": 255,
+                "uiName": "PX4 Instance"
+            },
+
+            "airframe": {
+                "type": "token",
+                "description": "The airframe type.",
+                "default": "QuadX",
+                "metadata": {
+                    "allowedTokens": ["QuadX", "HexX", "OctX"]
+                },
+                "uiName": "Airframe"
+            },
+
+            "vehiclePrim": {
+                "type": "target",
+                "description": "Vehicle prim (Articulation root) used to connect to PX4 Autopilot",
+                "metadata": {
+                    "allowMultiInputs": "0"
+                }
+            }
+        },
+        "state": {
+            "simModel": {
+                "type": "token",
+                "description": "PX4 simulation model",
+                "metadata": {
+                    "hidden": "true"
+                }
+            },
+
+            "km": {
+                "type": "float",
+                "description": "Rotor moment constant N⋅m/(rad/s)²",
+                "metadata": {
+                    "hidden": "true"
+                }
+            },
+
+            "kf": {
+                "type": "float",
+                "description": "Rotor force constant N/(rad/s)²",
+                "metadata": {
+                    "hidden": "true"
+                }
+            },
+
+            "maxVel": {
+                "type": "float",
+                "description": "Max rotor velocity (rad/s)",
+                "metadata": {
+                    "hidden": "true"
+                }
+            },
+
+            "stdDev": {
+                "type": "float",
+                "description": "Parameter standard deviation",
+                "metadata": {
+                    "hidden": "true"
+                }
+            },
+
+            "maxServoTorque": {
+                "type": "float",
+                "description": "Maximum servo torque value",
+                "metadata": {
+                    "hidden": "true"
+                }
+            },
+
+            "maxServoAngle": {
+                "type" : "float",
+                "description" : "Maximum servo angle",
+                "metadata": {
+                    "hidden": "true"
+                }
+            },
+
+            "rotorTau": {
+                "type": "float",
+                "description": "Rotor time constant",
+                "metadata": {
+                    "hidden": "true"
+                }
+            },
+
+            "servoTau": {
+                "type": "float",
+                "description": "Servo time constant",
+                "metadata": {
+                    "hidden": "true"
+                }
+            },
+
+            "rotorDrag": {
+                "type" : "vectorf[3]",
+                "description" : "Rotor drag coefficient",
+                "metadata": {
+                    "hidden": "true"
+                }
+            },
+
+            "airframeDrag": {
+                "type" : "float",
+                "description" : "Airframe drag",
+                "metadata": {
+                    "hidden": "true"
+                }
+            }
+        }
+    }
+}

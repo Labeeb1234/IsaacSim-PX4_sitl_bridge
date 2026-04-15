@@ -1,0 +1,196 @@
+{
+    "StreamHILSensorNode": {
+        "version": 1,
+        "icon": "icons/px4_black.svg",
+        "singleton": true,
+        "description": [
+            "This node stream HIL_SENSOR (https://mavlink.io/en/messages/common.html#HIL_SENSOR) Mavlink message to PX4 SITL"
+        ],
+        "metadata": {
+            "uiName": "Stream HIL Sensor"
+        },
+        "categories": {"PX4": "Nodes used with PX4 Autopilot"},
+        "inputs": {
+            "execIn": {
+                "type": "execution",
+                "description": "The input execution port."
+            },
+
+            "vehiclePrim": {
+                "type": "target",
+                "description": "Vehicle prim (Articulation root) used to connect to PX4 Autopilot",
+                "uiName": "Vehicle Prim",
+                "metadata": {
+                    "allowMultiInputs": "0"
+                }
+            },
+
+            "px4Instance": {
+                "type": "int",
+                "description": "The px4 instance.",
+                "default": 0,
+                "minimum": 0,
+                "maximum": 255,
+                "uiName": "PX4 Instance"
+            },
+
+            "time": {
+                "type": "double",
+                "description": "The global playback time in seconds.",
+                "uiName": "Time"
+            },
+
+            "rateIMU": {
+                "type": "int",
+                "description": "The sampling frequency in Hz for IMU.",
+                "default": 200,
+                "minimum": 0,
+                "uiName": "Rate IMU"
+            },
+
+            "rateMag": {
+                "type": "int",
+                "description": "The sampling frequency in Hz for Magnetometer.",
+                "default": 100,
+                "minimum": 0,
+                "uiName": "Rate Magnetometer"
+            },
+
+            "rateBaro": {
+                "type": "int",
+                "description": "The sampling frequency in Hz for Barometer.",
+                "default": 50,
+                "minimum": 0,
+                "uiName": "Rate Baro"
+            },
+
+            "homeCoordinate": {
+                "type": "vectorf[3]",
+                "description": "The WGS84 coordinate Latitude [deg], Longitude [deg], Altitude [m].",
+                "uiName": "Home Coordinate",
+                "default": [1.4404549720351443, 103.6161149686668, 24.0]
+            }
+        },
+        "state": {
+            "systemId": {
+                "type": "uchar",
+                "description": "System ID - unique per vehicle (https://docs.px4.io/main/en/advanced_config/parameter_reference.html#MAV_SYS_ID)",
+                "metadata": {
+                    "hidden": "true"
+                }
+            },
+
+            "offsetTranslationIMU": {
+                "type" : "vectord[3]",
+                "description" : "Offset Translation [m] in X, Y, Z for IMU",
+                "metadata": {
+                    "hidden": "true"
+                }
+            },
+
+            "offsetEulerRadIMU": {
+                "type" : "vectord[3]",
+                "description" : "Offset Euler Rotation [rad] in X, Y, Z order for IMU",
+                "metadata": {
+                    "hidden": "true"
+                }
+            },
+
+            "accelerometerNoiseDensity": {
+                "type" : "float",
+                "description" : "Accelerometer noise density (two-sided spectrum) [m/s^2/sqrt(Hz)]",
+                "metadata": {
+                    "hidden": "true"
+                }
+            },
+
+            "accelerometerRandomWalk": {
+                "type" : "float",
+                "description" : "Accelerometer bias random walk. [m/s^2/s/sqrt(Hz)]",
+                "metadata": {
+                    "hidden": "true"
+                }
+            },
+
+            "accelerometerBiasCorrelationTime": {
+                "type" : "float",
+                "description" : "Accelerometer bias correlation time constant [s]",
+                "metadata": {
+                    "hidden": "true"
+                }
+            },
+
+            "accelerometerTurnOnBiasSigma": {
+                "type" : "float",
+                "description" : "Accelerometer turn on bias standard deviation [m/s^2]",
+                "metadata": {
+                    "hidden": "true"
+                }
+            },
+
+            "gyroscopeNoiseDensity": {
+                "type" : "float",
+                "description" : "Gyroscope noise density (two-sided spectrum) [rad/s/sqrt(Hz)]",
+                "metadata": {
+                    "hidden": "true"
+                }
+            },
+
+            "gyroscopeRandomWalk": {
+                "type" : "float",
+                "description" : "Gyroscope bias random walk [rad/s/s/sqrt(Hz)]",
+                "metadata": {
+                    "hidden": "true"
+                }
+            },
+
+            "gyroscopeBiasCorrelationTime": {
+                "type" : "float",
+                "description" : "Gyroscope bias correlation time constant [s]",
+                "metadata": {
+                    "hidden": "true"
+                }
+            },
+
+            "gyroscopeTurnOnBiasSigma": {
+                "type" : "float",
+                "description" : "Gyroscope turn on bias standard deviation [rad/s]",
+                "metadata": {
+                    "hidden": "true"
+                }
+            },
+
+            "magnetometerNoiseDensity": {
+                "type" : "float",
+                "description" : "Magnetometer noise density [gauss / sqrt(hz)]",
+                "metadata": {
+                    "hidden": "true"
+                }
+            },
+
+            "magnetometerRandomWalk": {
+                "type" : "float",
+                "description" : "Magnetometer bias random walk [gauss * sqrt(hz)]",
+                "metadata": {
+                    "hidden": "true"
+                }
+            },
+
+            "magnetometerBiasCorrelationTime": {
+                "type" : "float",
+                "description" : "Magnetometer bias correlation time constant [s]",
+                "metadata": {
+                    "hidden": "true"
+                }
+            },
+
+            "barometerDriftPaPerSecond": {
+                "type" : "float",
+                "description" : "Barometer pressure drift inn seconds [Pa/s]",
+                "metadata": {
+                    "hidden": "true"
+                }
+            }
+        }
+    }
+}
