@@ -10,7 +10,8 @@ A custom omnigraph node to bridge px4_sitl and NVIDIA-isaacsim
 ## Process/Walkthrough
 
 - Placeholder until everything is complete
-<img width=640" height="640" alt="custom_px4_silt_bridge_isaacsim" src="https://github.com/user-attachments/assets/a314e8b9-7b1e-428b-a491-f3ec9cae1809" />
+
+<img width="640" height="640" alt="custom_px4_silt_bridge_isaacsim" src="https://github.com/user-attachments/assets/a314e8b9-7b1e-428b-a491-f3ec9cae1809" />
 
 
 - Instructions, brief walkthroughs and demos coming soon!
