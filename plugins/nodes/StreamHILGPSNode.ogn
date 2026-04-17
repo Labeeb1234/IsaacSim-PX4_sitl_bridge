@@ -1,0 +1,116 @@
+{
+    "StreamHILGPSNode": {
+        "version": 1,
+        "icon": "icons/px4_black.svg",
+        "singleton": true,
+        "description": [
+            "This node stream HIL_GPS (https://mavlink.io/en/messages/common.html#HIL_GPS) Mavlink message to PX4 SITL"
+        ],
+        "metadata": {
+            "uiName": "Stream HIL GPS"
+        },
+        "categories": {"PX4": "Nodes used with PX4 Autopilot"},
+        "inputs": {
+            "execIn": {
+                "type": "execution",
+                "description": "The input execution port."
+            },
+
+            "vehiclePrim": {
+                "type": "target",
+                "description": "Vehicle prim (Articulation root) used to connect to PX4 Autopilot",
+                "uiName": "Vehicle Prim",
+                "metadata": {
+                    "allowMultiInputs": "0"
+                }
+            },
+
+            "px4Instance": {
+                "type": "int",
+                "description": "The px4 instance.",
+                "default": 0,
+                "minimum": 0,
+                "maximum": 255,
+                "uiName": "PX4 Instance"
+            },
+
+            "time": {
+                "type": "double",
+                "description": "The global playback time in seconds.",
+                "uiName": "Time"
+            },
+
+            "homeCoordinate": {
+                "type": "vectorf[3]",
+                "description": "The WGS84 coordinate Latitude [deg], Longitude [deg], Altitude [m].",
+                "uiName": "Home Coordinate",
+                "default": [1.4404549720351443, 103.6161149686668, 24.0]
+            }
+        },
+        "state": {
+            "systemId": {
+                "type": "uchar",
+                "description": "System ID - unique per vehicle (https://docs.px4.io/main/en/advanced_config/parameter_reference.html#MAV_SYS_ID)",
+                "metadata": {
+                    "hidden": "true"
+                }
+            },
+
+            "gpsXYNoiseDensity": {
+                "type" : "float",
+                "description" : "GPS Horizontal position noise density [m/sqrt(Hz)]",
+                "metadata": {
+                    "hidden": "true"
+                }
+            },
+
+            "gpsZNoiseDensity": {
+                "type" : "float",
+                "description" : "GPS Vertical position noise density [m/sqrt(Hz)]",
+                "metadata": {
+                    "hidden": "true"
+                }
+            },
+
+            "gpsVXYNoiseDensity": {
+                "type" : "float",
+                "description" : "GPS Horizontal velocity noise density [m/s/sqrt(Hz)]",
+                "metadata": {
+                    "hidden": "true"
+                }
+            },
+
+            "gpsVZNoiseDensity": {
+                "type" : "float",
+                "description" : "GPS Vertical velocity noise density [m/s/sqrt(Hz)]",
+                "metadata": {
+                    "hidden": "true"
+                }
+            },
+
+            "gpsXYRandomWalk": {
+                "type" : "float",
+                "description" : "GPS Horizontal position random walk [m/sqrt(Hz)]",
+                "metadata": {
+                    "hidden": "true"
+                }
+            },
+
+            "gpsZRandomWalk": {
+                "type" : "float",
+                "description" : "GPS Vertical position random walk [m/sqrt(Hz)]",
+                "metadata": {
+                    "hidden": "true"
+                }
+            },
+
+            "gpsCorrelationTime": {
+                "type" : "float",
+                "description" : "GPS Correlation Time [s]",
+                "metadata": {
+                    "hidden": "true"
+                }
+            }
+        }
+    }
+}

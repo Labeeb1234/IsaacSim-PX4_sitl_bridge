@@ -138,7 +138,20 @@ namespace isaac::px4_sitl::bridge{
                 // Accept server connection
                 if(!serverManager.connect(px4_instance)){ return false; }
             }
-
+            // loading vehicle props
+            omni::fabric::PathC vehiclePath = vehicle_in[0];
+            if(!state.m_vehicle_->isVehiclePathEqual(vehiclePath)){
+                state.m_vehicle_->loadVehicle(vehiclePath);
+                if(state.m_vehicle_->getRotorCount() + state.m_vehicle_->getActuatorCount() > 16){
+                    CARB_LOG_WARN("Vehicle actuator size over limit of 16, rotor(%ld), actuator(%ld)", state.m_vehicle_->getRotorCount(), state.m_vehicle_->getActuatorCount());
+                    return false;
+                }
+                state.m_airframe_ = state.m_vehicle_->getAirframeConfig(db.tokenToString(airframe));
+                if(state.m_airframe_.size() != state.m_vehicle_->getRotorCount()){
+                    CARB_LOG_WARN("Airframe %s does not match rotor size = %ld!", db.tokenToString(airframe), state.m_vehicle_->getRotorCount());
+                    return false;
+                }
+            }
             // Handle data exchange
             std::array<uint8_t, 1024> receive_buffer{};
             size_t bytes_received = 0;
@@ -147,9 +160,8 @@ namespace isaac::px4_sitl::bridge{
                 CARB_LOG_ERROR("Failed to receive data from PX4 instance %d", px4_instance);
                 return false;
             }
-
             state.parse_mavlink_messages(receive_buffer.data(), bytes_received, state.m_actuator_control_);
-            
+            state.m_vehicle_->computeDynamics(state.m_actuator_control_, state.m_airframe_);
             return true;
         }
 
@@ -173,6 +185,12 @@ namespace isaac::px4_sitl::bridge{
                             printf("HEARTBEAT - System type: %d, Autopilot: %d\n", (int)heartbeat.type, (int)heartbeat.autopilot);
                             break;
                         }
+                        case MAVLINK_MSG_ID_SYS_STATUS:{
+                            mavlink_sys_status_t sys_status;
+                            mavlink_msg_sys_status_decode(&msg, &sys_status);
+                            printf("SYS_STATUS - Battery remaining: %d\n", sys_status.battery_remaining);
+                            break;
+                        }
                         case MAVLINK_MSG_ID_COMMAND_LONG:{
                             mavlink_command_long_t command_long;
                             mavlink_msg_command_long_decode(&msg, &command_long);
@@ -180,6 +198,17 @@ namespace isaac::px4_sitl::bridge{
                                 (int)command_long.command, (int)command_long.confirmation,
                                 (int)command_long.target_system, (int)command_long.target_component,
                                 command_long.param1, command_long.param2, command_long.param3, command_long.param4, command_long.param5, command_long.param6, command_long.param7);
+                            break;
+                        }
+                        case MAVLINK_MSG_ID_HIL_ACTUATOR_CONTROLS:{
+                            mavlink_hil_actuator_controls_t mavlink_controls;
+                            mavlink_msg_hil_actuator_controls_decode(&msg, &mavlink_controls);
+                            std::copy_n(mavlink_controls.controls, m_actuator_control.actuator_cmd.size(), m_actuator_control.actuator_cmd.begin());
+                            // std::cout << "ACTUATORS: ";
+                            // for(int i = 0; i < 4; i++){
+                            //     std::cout << mavlink_controls.controls[i] << " ";
+                            // }
+                            // std::cout << std::endl;
                             break;
                         }
                         default:

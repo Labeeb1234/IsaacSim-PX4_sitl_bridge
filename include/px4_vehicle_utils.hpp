@@ -9,6 +9,9 @@
 #include <usdrt/scenegraph/usd/usd/prim.h>
 #include <usdrt/scenegraph/base/gf/vec3f.h>
 #include <usdrt/scenegraph/base/gf/quatf.h>
+#include <usdrt/scenegraph/usd/usd/tokens.h>
+#include <usdrt/scenegraph/usd/sdf/path.h>
+#include <usdrt/scenegraph/usd/usd/attribute.h>
 #include <usdrt/gf/vec.h>
 
 
@@ -17,6 +20,7 @@
 #include <usdrt/scenegraph/usd/physxSchema/physxDeformableAPI.h>
 #include <usdrt/scenegraph/usd/physxSchema/physxForceAPI.h>
 #include <usdrt/scenegraph/usd/usdPhysics/articulationRootAPI.h>
+#include <usdrt/scenegraph/usd/usdPhysics/driveAPI.h>
 
 #include <algorithm>
 #include <vector>
@@ -27,6 +31,7 @@
 #include <regex>
 #include <array>
 #include <random>
+#include <iostream>
 
 #include "px4_math_utils.hpp"
 #include "xoshiro256ss.h"
@@ -178,6 +183,100 @@ class Px4Multirotor{
             vehicle_base_link_.GetAttribute(usdrt::TfToken("physics:angularVelocity")).Get<usdrt::GfVec3f>(&motions.angular_velocity);
         }
 
+        const void getRotorTorqueAxis(const float &moment, usdrt::GfVec3f &torque_axis, int index){
+            if(rotor_body_group_.empty() || index < 0 || index >= static_cast<int>(rotor_body_group_.size())){return;}
+            usdrt::GfQuatd orient(0, 0, 0, 0);
+            rotor_body_group_[index].GetAttribute(usdrt::TfToken("xformOp:orient")).Get<usdrt::GfQuatd>(&orient);
+            torque_axis = moment * getQuatAxis(static_cast<usdrt::GfQuatf>(orient));
+        }
+
+        // Black Magic Voodoo Drone Dynamics
+        void computeDynamics(ActuatorControl &m_actuator_control, std::vector<int> &dir){
+            // params setup and seed init
+            std::random_device rd;
+            xoshiro256ss rng(rd());
+            std::normal_distribution<float> vel_normal_dist(parameters_.max_rotor_velocity, parameters_.max_rotor_velocity * parameters_.params_std_dev);
+            std::normal_distribution<float> km_normal_dist(parameters_.moment_constants, parameters_.moment_constants * parameters_.params_std_dev);
+            std::normal_distribution<float> kf_normal_dist(parameters_.force_constants, parameters_.force_constants * parameters_.params_std_dev);
+            std::normal_distribution<float> tau_normal_dist(parameters_.rotor_time_constants, parameters_.rotor_time_constants * parameters_.params_std_dev);
+            const float omega = vel_normal_dist(rng);
+            const float omega_squared = std::pow(omega, 2.0f);
+            std::vector<usdrt::GfVec3f> rotor_torque(getRotorCount());
+            const int unused_cmd = 16 - getRotorCount() - getActuatorCount();
+
+            for(size_t idx=0; idx<m_actuator_control.actuator_cmd.size()-unused_cmd; ++idx){
+                const float &cmd = m_actuator_control.actuator_cmd[idx];
+                float tau = std::clamp(tau_normal_dist(rng), 0.0f, 1.0f);
+                if(idx < getRotorCount()){
+                    // update for rotors (exponential smoothing)
+                    // current_setpoint = prev_setpoint + tau * (sqrt(|cmd|) - prev_setpoint) 
+                    m_actuator_control.actuator_setpoint[idx] += tau * (std::sqrt(std::abs(cmd)) - m_actuator_control.actuator_setpoint[idx]); // clever smooth updation 
+                    float throttle = m_actuator_control.actuator_setpoint[idx];
+                    float rotor_velocity = dir[idx]*omega*throttle;
+                    if(throttle > 5 * parameters_.params_std_dev){
+                        // if throttle inputs are small (under std_dev tol) ignore updation
+                        setRotorVelocity(rotor_velocity, idx);
+                    }
+                    float throttle_squared = std::pow(throttle, 2.0f);
+                    float rotor_thrust = throttle_squared * std::abs(kf_normal_dist(rng) * omega_squared);
+                    
+                    // ---------------- DEBUG ----------------
+                    std::cout << "rotor_" << idx << " velocity: " << rotor_velocity << std::endl;
+                    std::cout << "rotor" << idx << " thrust: " << rotor_thrust << std::endl;
+                    // ---------------------------------------
+
+                    if(throttle > 5 * parameters_.params_std_dev){
+                        // ignore thrust update if throttle is too small
+                        setRotorForce(rotor_thrust, idx);
+                    }
+
+                    float rotor_moment = -dir[idx] * throttle_squared * std::abs(km_normal_dist(rng) * omega_squared);
+                    usdrt::GfVec3f torque_axis(0, 0, 0);
+                    getRotorTorqueAxis(rotor_moment, torque_axis, idx);
+                    rotor_torque[idx] = torque_axis;
+                }else if(idx >= getRotorCount() && idx < getRotorCount()+getActuatorCount()){
+                    // update for generic actuators (s-curve)
+                    // current_setpoint = lerp(prev_setpoint, target_setpoint, smoothstep)
+                    float smoothstep = parameters_.servo_time_constants * parameters_.servo_time_constants * (3 - 2 * parameters_.servo_time_constants); // lerp update rate
+                    m_actuator_control.actuator_setpoint[idx] = lerp(m_actuator_control.actuator_setpoint[idx], parameters_.max_angle * cmd, smoothstep);
+                    setActuatorPosition(m_actuator_control.actuator_setpoint[idx], idx - getRotorCount());
+                    setActuatorForce(parameters_.max_torque, idx - getRotorCount());
+                }
+                
+            }
+
+            usdrt::GfVec3f velocity(0.0f, 0.0f, 0.0f);
+            getVehicleVelocity(velocity);
+            usdrt::GfMatrix3f rotMatrix(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
+            getVehicleRotationMatrix(rotMatrix);
+
+            usdrt::GfVec3f body_drag = -1.0f * parameters_.airframe_drag * velocity.GetLength() * velocity;
+            usdrt::GfVec3f rotor_drag = -1.0f * rotMatrix * parameters_.rotor_drag_coef * rotMatrix.GetTranspose() * velocity.GetLength();
+            /** @note
+            / We are applying additional body drag assuming similar reference area in X,Y plane and first-order rotor drag to the vehicle base link.
+            / The collective thrusts are applied to center of mass of the vehicle and the gravity is already acting on the rigid body.
+            / see https://discuss.px4.io/t/wind-estimator-tuning-equation/28053 and https://rpg.ifi.uzh.ch/docs/RAL18_Faessler.pdf
+            / Should consider https://docs.omniverse.nvidia.com/extensions/latest/ext_omnigraph/node-library/nodes/omni-physx-forcefields/omni-physx-forcefields-forcefieldwind-1.html?
+            / Global downwash and equilibrium actuator action acting on main body is not taken into account, assuming negligible.
+            */
+            usdrt::GfVec3f force_ = body_drag + rotor_drag;
+            usdrt::GfVec3f torque_ = std::reduce(rotor_torque.begin(), rotor_torque.end());
+
+            setVehicleForceAndTorque(force_, torque_, true);
+        }
+
+        std::vector<int> getAirframeConfig(const std::string &airframe){
+            std::unordered_map<std::string, std::vector<int>> air_frame_configs = {
+                {"QuadX", {1, 1, -1, -1}},
+                {"HexX", {-1, 1, -1, 1, 1, -1}},
+                {"OctX", {-1, -1, 1, 1, 1, 1, -1, -1}}
+            };
+            auto itr = air_frame_configs.find(airframe);
+            if(itr!=air_frame_configs.end()){
+                return air_frame_configs[airframe];
+            }
+            return {};
+        }
 
 private:
     std::vector<usdrt::UsdPrim> rotor_joint_group_;
@@ -219,14 +318,16 @@ private:
 
         // process all child links and extract and set force apis to the rotor and actuators
         auto processChild = [&](const usdrt::UsdPrim& child){
-            std::cout << "child component name: [" << child.GetName().GetText() << "]" << std::endl;
+            // std::cout << "child component name: [" << child.GetName().GetText() << "]" << std::endl;
             if(std::regex_match(child.GetName().GetText(), rotor_pattern)){
                 // check for revolute joints
                 if(child.IsA(usdrt::UsdPhysicsRevoluteJoint::_GetStaticTfType())){
+                    std::cout << "child component name: [" << child.GetName().GetText() << "]" << std::endl;
                     rotor_joint_group_.emplace_back(child);
                 }
                 // set forces to body
-                if(child.IsA(usdrt::UsdPhysicsRigidBodyAPI::_GetStaticTfType())){
+                if(child.IsA(usdrt::UsdPhysicsRigidBodyAPI::_GetStaticTfType()) || child.HasAPI(usdrt::UsdPhysicsRigidBodyAPI::_GetStaticTfType())){
+                    std::cout << "child component name: [" << child.GetName().GetText() << "]" << std::endl;
                     rotor_body_group_.emplace_back(child);
                     setForceAPI(child); // set force here after the func is complete
                 }
@@ -312,8 +413,13 @@ private:
         if(rotor_joint_group_.empty() || idx < 0 || idx >= static_cast<int>(rotor_joint_group_.size())){
             return;
         }
-        // rotor_joint_group[idx].GetAttribute(usdrt::TfToken("drive:angular:physics:targetVelocity")).Set(velocity * RAD2DEG);
-        rotor_joint_group_[idx].GetAttribute(usdrt::TfToken("state:angular:physics:velocity")).Set(velocity * RAD2DEG); 
+        // Ensure DriveAPI attribute exists
+        if (!rotor_joint_group_[idx].GetAttribute(usdrt::TfToken("drive:angular:physics:targetVelocity")).IsValid()) {
+            usdrt::UsdPhysicsDriveAPI(rotor_joint_group_[idx], usdrt::UsdPhysicsTokens->angular)
+                .CreateTargetVelocityAttr();
+        }
+        rotor_joint_group_[idx].GetAttribute(usdrt::TfToken("drive:angular:physics:targetVelocity")).Set(velocity*RAD2DEG);
+        // rotor_joint_group_[idx].GetAttribute(usdrt::TfToken("state:angular:physics:velocity")).Set(velocity * RAD2DEG); 
     }
 
     void setRotorForce(const float thrust, int idx = 0){
@@ -328,8 +434,8 @@ private:
         if(actuator_joint_group_.empty() || idx < 0 || idx >= static_cast<int>(actuator_joint_group_.size())){
             return;
         }
-        // actuator_joint_group[idx].GetAttribute(usdrt::TfToken("drive:angular:physics:targetPosition")).Set(position);
-        actuator_joint_group_[idx].GetAttribute(usdrt::TfToken("state:angular:physics:position")).Set(position);
+        actuator_joint_group_[idx].GetAttribute(usdrt::TfToken("drive:angular:physics:targetPosition")).Set(position);
+        // actuator_joint_group_[idx].GetAttribute(usdrt::TfToken("state:angular:physics:position")).Set(position);
     }
 
     void setActuatorForce(const float force, int idx = 0){
@@ -346,6 +452,37 @@ private:
         vehicle_base_link_.GetAttribute(usdrt::TfToken("physxForce:force")).Set(force);
         vehicle_base_link_.GetAttribute(usdrt::TfToken("physxForce:torque")).Set(torque);
     }
+
+
+    void printPrimAttributes(const usdrt::UsdPrim& prim){
+        if (!prim.IsValid()) {
+            std::cout << "[ERROR] Invalid prim\n";
+            return;
+        }
+        std::cout << "\n[INFO] Attributes for prim: " << prim.GetPrimPath().GetString() << "\n";
+
+        auto attrs = prim.GetAttributes();
+        for (const auto& attr : attrs){
+            std::cout << "  - " << attr.GetName().GetString();
+            // Optional: print type
+            auto typeName = attr.GetTypeName();
+            std::cout << " | type: " << typeName.GetAsToken().GetString();
+            // Optional: check if it has a value
+            if (attr.HasValue()) {
+                std::cout << " | hasValue";
+            }
+            std::cout << "\n";
+        }
+    }
+    void printAppliedSchemas(const usdrt::UsdPrim& prim){
+        if (!prim.IsValid()) return;
+        std::cout << "\n[INFO] Applied schemas for prim: " << prim.GetPrimPath().GetString() << "\n";
+        auto schemas = prim.GetAppliedSchemas();
+        for (const auto& s : schemas){
+            std::cout << "  - " << s.GetString() << "\n";
+        }
+    }
+
     // ---------------------------------------
 };
 }
