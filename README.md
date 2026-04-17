@@ -10,7 +10,9 @@ A custom omnigraph node to bridge px4_sitl and NVIDIA-isaacsim
 
 source env variables
 ```bash
-export PX4_BINARY_PATH=<path_to_your_px4_toolchain(PX4_Autopilot path)>
+export PX4_BINARY_PATH=<path_to_your_px4_toolchain(PX4_Autopilot path)> (mandatory)
+export PX4_SYS_AUTOSTART=<your airframe param script code val> (optional)
+export PX4_SIM_MODEL=x500(or your custom frame) (optional)
 ```
 
 
