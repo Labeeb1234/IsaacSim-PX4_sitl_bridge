@@ -4,14 +4,14 @@ A custom omnigraph node to bridge px4_sitl and NVIDIA-isaacsim
 
 
 - Extension Tested on a X500 Drone Model Frame
-<img width="640" height="480" alt="drone_model_isaacsim_x500" src="https://github.com/user-attachments/assets/1ed45979-30f1-4598-aaf4-8b9880fb6276" />
+<img width="720" height="480" alt="drone_model_isaacsim_x500" src="https://github.com/user-attachments/assets/1ed45979-30f1-4598-aaf4-8b9880fb6276" />
 
 
 ## Process/Walkthrough
 
 - Placeholder until everything is complete
 
-<img width="640" height="640" alt="custom_px4_silt_bridge_isaacsim" src="https://github.com/user-attachments/assets/a314e8b9-7b1e-428b-a491-f3ec9cae1809" />
+<img width="720" height="640" alt="custom_px4_silt_bridge_isaacsim" src="https://github.com/user-attachments/assets/a314e8b9-7b1e-428b-a491-f3ec9cae1809" />
 
 
 - Instructions, brief walkthroughs and demos coming soon!
