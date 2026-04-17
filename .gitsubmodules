@@ -1,0 +1,3 @@
+[submodule "Folder-Name"]
+    path = Folder-Name
+    url = https://github.com
