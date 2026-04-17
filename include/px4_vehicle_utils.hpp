@@ -413,13 +413,13 @@ private:
         if(rotor_joint_group_.empty() || idx < 0 || idx >= static_cast<int>(rotor_joint_group_.size())){
             return;
         }
-        // Ensure DriveAPI attribute exists
+        // Ensure DriveAPI attribute exists (A weird as bug in isaacsim 4.5.0 API is not letting me set targetVelocity to joints even though the attribute already exists in the prims of USD file
         if (!rotor_joint_group_[idx].GetAttribute(usdrt::TfToken("drive:angular:physics:targetVelocity")).IsValid()) {
             usdrt::UsdPhysicsDriveAPI(rotor_joint_group_[idx], usdrt::UsdPhysicsTokens->angular)
                 .CreateTargetVelocityAttr();
         }
         rotor_joint_group_[idx].GetAttribute(usdrt::TfToken("drive:angular:physics:targetVelocity")).Set(velocity*RAD2DEG);
-        // rotor_joint_group_[idx].GetAttribute(usdrt::TfToken("state:angular:physics:velocity")).Set(velocity * RAD2DEG); 
+        // rotor_joint_group_[idx].GetAttribute(usdrt::TfToken("state:angular:physics:velocity")).Set(velocity * RAD2DEG); // don't use as of now (isaacsim 4.5.0)
     }
 
     void setRotorForce(const float thrust, int idx = 0){
@@ -427,7 +427,7 @@ private:
             return;
         }
         usdrt::GfVec3f force(0, 0, thrust);
-        rotor_body_group_[idx].GetAttribute(usdrt::TfToken("physxForce:force")).Set(force);
+        rotor_body_group_[idx].GetAttribute(usdrt::TfToken("physxForce:force")).Set(force); // for this to work your rigid body should have "normal physics:Force API added onto the prim" (can do it via GUI) 
     }
 
     void setActuatorPosition(const float position, int idx = 0){
@@ -435,7 +435,7 @@ private:
             return;
         }
         actuator_joint_group_[idx].GetAttribute(usdrt::TfToken("drive:angular:physics:targetPosition")).Set(position);
-        // actuator_joint_group_[idx].GetAttribute(usdrt::TfToken("state:angular:physics:position")).Set(position);
+        // actuator_joint_group_[idx].GetAttribute(usdrt::TfToken("state:angular:physics:position")).Set(position); // don't use as of now (isaacsim 4.5.0)
     }
 
     void setActuatorForce(const float force, int idx = 0){

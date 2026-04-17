@@ -15,8 +15,6 @@ using omni::graph::core::BaseDataType;
 
 namespace isaac::px4_sitl::bridge{
 
-
-
     class PX4BridgeNode{
     public:
 
@@ -115,6 +113,7 @@ namespace isaac::px4_sitl::bridge{
             const auto &airframe = db.inputs.airframe();
             const auto &px4_instance = db.inputs.px4Instance();
             const auto &vehicle_in = db.inputs.vehiclePrim();
+
             if(vehicle_in.empty()){
                 CARB_LOG_WARN("No vehicle input at %s", db.abi_node().iNode->getPrimPath(db.abi_node()));
                 return false;
@@ -138,6 +137,7 @@ namespace isaac::px4_sitl::bridge{
                 // Accept server connection
                 if(!serverManager.connect(px4_instance)){ return false; }
             }
+
             // loading vehicle props
             omni::fabric::PathC vehiclePath = vehicle_in[0];
             if(!state.m_vehicle_->isVehiclePathEqual(vehiclePath)){
