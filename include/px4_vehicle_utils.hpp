@@ -39,7 +39,6 @@
 
 namespace isaac::px4_sitl::bridge{
 
-
 static usdrt::UsdStageRefPtr getActiveStage(){
     const std::vector<PXR_NS::UsdStageRefPtr> stages = PXR_NS::UsdUtilsStageCache::Get().GetAllStages();
     if (stages.size() != 1){
@@ -49,11 +48,9 @@ static usdrt::UsdStageRefPtr getActiveStage(){
     return usdrt::UsdStage::Attach(omni::fabric::UsdStageId(stage_id));
 }
 
-
-
 class Px4Multirotor{
     public:
-        Px4Multirotor(){
+        Px4Multirotor(){            
             rotor_joint_group_.reserve(16);
             rotor_body_group_.reserve(16);
             actuator_joint_group_.reserve(6);
@@ -220,10 +217,10 @@ class Px4Multirotor{
                     float throttle_squared = std::pow(throttle, 2.0f);
                     float rotor_thrust = throttle_squared * std::abs(kf_normal_dist(rng) * omega_squared);
                     
-                    // ---------------- DEBUG ----------------
-                    std::cout << "rotor_" << idx << " velocity: " << rotor_velocity << std::endl;
-                    std::cout << "rotor" << idx << " thrust: " << rotor_thrust << std::endl;
-                    // ---------------------------------------
+                    // // ---------------- DEBUG ----------------
+                    // std::cout << "rotor_" << idx << " velocity: " << rotor_velocity << std::endl;
+                    // std::cout << "rotor" << idx << " thrust: " << rotor_thrust << std::endl;
+                    // // ---------------------------------------
 
                     if(throttle > 5 * parameters_.params_std_dev){
                         // ignore thrust update if throttle is too small
