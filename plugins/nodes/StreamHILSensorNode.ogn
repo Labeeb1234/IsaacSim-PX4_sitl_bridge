@@ -191,6 +191,12 @@
                     "hidden": "true"
                 }
             }
+        },
+        "outputs": {
+            "earthMagneticField": {
+                "type": "vectorf[3]",
+                "description": "Raw Earth Magnetic field data in Gauss"
+            }
         }
     }
 }

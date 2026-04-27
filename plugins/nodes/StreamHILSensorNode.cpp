@@ -199,6 +199,12 @@ public:
         auto mag_data = state.m_mag_->getMagReadings();
         auto baro_data = state.m_baro_->getBaroReadings();
 
+        // adding mag data (calculated detected earth magetic field in og drone frame)
+        auto& B_out = db.outputs.earthMagneticField();
+        B_out[0] = mag_data.mag_field_noisy[0];
+        B_out[1] = mag_data.mag_field_noisy[1];
+        B_out[2] = mag_data.mag_field_noisy[2];
+
         // sending mavlink sensor msgs to FCU
         mavlink_message_t msg;
         std::array<uint8_t, MAVLINK_MAX_PACKET_LEN> buffer{};
