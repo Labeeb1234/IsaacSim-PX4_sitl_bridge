@@ -150,7 +150,7 @@ public:
         std::normal_distribution<float> normal_dist(0.0f, 1.0f);
         const float dt = static_cast<float>(delta_time);
 
-		const auto pos = motion.translate;
+		const auto pos = motion.translate;        
         const auto latlon = reprojectEarth(
 			pos,
 			latitude * M_PI / 180.0f,   // convert to radian
