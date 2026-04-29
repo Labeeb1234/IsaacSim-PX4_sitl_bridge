@@ -15,6 +15,10 @@ A custom omnigraph node to bridge px4_sitl and NVIDIA-isaacsim
 
 
 - Instructions, brief walkthroughs and demos coming soon!
+- A demo flight mission using this isaac-px4_sitl-bridge is shown below:
+
+
+
 
 
 - source env variables
