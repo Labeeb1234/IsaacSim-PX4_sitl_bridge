@@ -1,8 +1,8 @@
 # IsaacSim-PX4_sitl_bridge (Beluga Bridge)
-A custom omnigraph node to bridge px4_sitl and NVIDIA-isaacsim
 
 <img width="720" height="480" alt="beluga" src="https://github.com/user-attachments/assets/bcfe4290-bf33-430e-bc53-ee367f020652"/>
 
+A custom omnigraph node to bridge px4_sitl and NVIDIA-isaacsim
 
 - Extension Tested on a X500 Drone Model Frame
 <img width="720" height="480" alt="drone_model_isaacsim_x500" src="https://github.com/user-attachments/assets/1ed45979-30f1-4598-aaf4-8b9880fb6276" />
